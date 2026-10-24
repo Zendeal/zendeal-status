@@ -4,7 +4,8 @@
   --background: #0a0a0c;
   --foreground: #f4f4f5;
   --muted: #a1a1aa;
-  --surface: #121216;
+  --surface: #0f0f12;
+  --surface-elevated: #141418;
   --border: rgb(255 255 255 / 8%);
   --success: #34d399;
   --warning: #fbbf24;
@@ -16,6 +17,7 @@
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
   --color-border: var(--border);
   --color-success: var(--success);
   --color-warning: var(--warning);
@@ -35,14 +37,46 @@ body {
   0%,
   100% {
     opacity: 1;
-    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
   }
-  50% {
-    opacity: 0.55;
-    transform: scale(0.92);
+  70% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheen {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
   }
 }
 
 .pulse-dot {
-  animation: pulse-dot 2s ease-in-out infinite;
+  animation: pulse-dot 2.4s ease-out infinite;
+}
+
+.rise {
+  animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.latency-bar {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--bar-color) 70%, transparent),
+    color-mix(in srgb, var(--bar-color) 25%, transparent)
+  );
 }
