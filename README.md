@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Zendeal Status
 
-## Getting Started
+Página pública de estado en [status.zendeal.io](https://status.zendeal.io).
 
-First, run the development server:
+Repo **independiente** de `pasarela-pago`. Comprueba automáticamente:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| Componente | Cómo |
+|---|---|
+| Web | `GET https://zendeal.io` |
+| API | `GET https://api.zendeal.io/v1/health` |
+| Enlaces cortos | `GET https://zdeal.link/` |
+| MongoDB | campo `checks.mongo` del health de la API |
+| Redis | campo `checks.redis` del health de la API |
+
+## API pública
+
+```http
+GET /api/status
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Respuesta (ejemplo):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```json
+{
+  "overall": "operational",
+  "updatedAt": "2026-10-24T16:00:00.000Z",
+  "components": [
+    { "id": "web", "name": "Web", "status": "operational", "latencyMs": 120 }
+  ]
+}
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`overall`: `operational` | `degraded` | `outage`
 
-## Learn More
+CORS abierto para que el footer de zendeal.io pueda consultarlo.
 
-To learn more about Next.js, take a look at the following resources:
+## Desarrollo
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm install
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy (Vercel)
 
-## Deploy on Vercel
+1. Importa este repo en Vercel.
+2. Framework: Next.js (detectado solo).
+3. Añade el dominio `status.zendeal.io`.
+4. DNS: CNAME `status` → `cname.vercel-dns.com` (o el que indique Vercel).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Variables opcionales: ver `.env.example`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Nota sobre Mongo / Redis
+
+No hace falta poner credenciales de DB aquí. El backend de Zendeal expone el estado en `/v1/health`.
