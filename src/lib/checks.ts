@@ -126,8 +126,8 @@ export async function runChecks(): Promise<StatusPayload> {
     },
     {
       id: "mongo",
-      name: "MongoDB",
-      description: "Base de datos",
+      name: "Base de datos",
+      description: "Almacenamiento principal",
       status: mongoOk ? "operational" : api.ok ? "outage" : "outage",
       latencyMs: api.ok ? api.latencyMs : null,
       message: mongoOk
@@ -138,8 +138,8 @@ export async function runChecks(): Promise<StatusPayload> {
     },
     {
       id: "redis",
-      name: "Redis",
-      description: "Caché y colas",
+      name: "Caché",
+      description: "Caché y colas de tareas",
       status: redisOk ? "operational" : "outage",
       latencyMs: api.ok ? api.latencyMs : null,
       message: redisOk

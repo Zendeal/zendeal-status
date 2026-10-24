@@ -4,18 +4,63 @@ import { useCallback, useEffect, useState } from "react";
 import { ComponentIcon } from "@/components/component-icon";
 import {
   componentLabel,
-  latencyColor,
-  latencyPct,
   overallLabel,
   overallSubcopy,
+  statusBadge,
   statusDot,
   statusGlow,
   statusRing,
   statusTone,
 } from "@/lib/labels";
-import type { StatusPayload } from "@/lib/types";
+import type { ComponentId, ComponentStatus, OverallStatus, StatusPayload } from "@/lib/types";
 
 const POLL_MS = 60_000;
+
+const GROUPS: { title: string; ids: ComponentId[]; viaApi?: boolean }[] = [
+  { title: "Servicios", ids: ["web", "api", "shortlinks"] },
+  // Their latency is the API health request's, so showing it per row would be misleading.
+  { title: "Infraestructura", ids: ["mongo", "redis"], viaApi: true },
+];
+
+function SignalBars({ status, latencyMs }: { status: ComponentStatus; latencyMs: number }) {
+  const filled = status === "outage" ? 0 : latencyMs < 800 ? 3 : latencyMs < 2500 ? 2 : 1;
+  return (
+    <span className="flex h-3 items-end gap-[2px]" aria-hidden>
+      {[1, 2, 3].map((n) => (
+        <span
+          key={n}
+          className={`w-[3px] rounded-full ${n <= filled ? statusDot(status) : "bg-white/10"}`}
+          style={{ height: `${n * 33}%` }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function StatusGlyph({ status }: { status: OverallStatus }) {
+  return (
+    <div
+      className={`relative grid size-12 shrink-0 place-items-center rounded-2xl border md:size-14 ${statusBadge(status)}`}
+      aria-hidden
+    >
+      <svg viewBox="0 0 24 24" fill="none" className="size-6 md:size-7">
+        {status === "operational" ? (
+          <path
+            d="m5 12.5 4.5 4.5L19 7.5"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : status === "degraded" ? (
+          <path d="M12 7v6M12 16.5v.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        ) : (
+          <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        )}
+      </svg>
+    </div>
+  );
+}
 
 function formatWhen(iso: string) {
   try {
@@ -107,126 +152,153 @@ export function StatusBoard({ initial }: { initial: StatusPayload }) {
           style={{ animationDelay: "60ms" }}
           aria-live="polite"
         >
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2.5">
-                <span
-                  className={`size-2.5 shrink-0 rounded-full pulse-dot ${statusDot(data.overall)}`}
-                  aria-hidden
-                />
-                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-                  Estado global
-                </p>
-              </div>
-              <h1
-                className={`font-display mt-3 text-[1.65rem] font-semibold tracking-tight md:text-[2rem] ${statusTone(data.overall)}`}
+          <div className="flex items-start gap-4 md:gap-5">
+            <StatusGlyph status={data.overall} />
+            <div className="min-w-0 flex-1 pt-0.5">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] ${statusBadge(data.overall)}`}
               >
+                <span className={`size-1.5 rounded-full pulse-dot ${statusDot(data.overall)}`} aria-hidden />
+                Estado actual
+              </span>
+              <h1 className="font-display mt-2.5 text-[1.5rem] font-semibold leading-tight tracking-tight text-foreground md:text-[1.9rem]">
                 {overallLabel(data.overall)}
               </h1>
-              <p className="mt-2 max-w-md text-sm leading-6 text-muted">
+              <p className="mt-1.5 max-w-md text-sm leading-6 text-muted">
                 {overallSubcopy(data.overall)}
-              </p>
-            </div>
-
-            <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-              <button
-                type="button"
-                onClick={() => void refresh()}
-                disabled={refreshing}
-                className="rounded-lg border border-border bg-surface-elevated px-3 py-1.5 text-xs text-muted transition-colors hover:border-white/15 hover:text-foreground disabled:opacity-60"
-              >
-                {refreshing ? "Comprobando…" : "Actualizar"}
-              </button>
-              <p className="text-[11px] text-muted">
-                {upCount}/{data.components.length} operativos
               </p>
             </div>
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border pt-4 text-[11px] text-muted">
-            <span>
+          <div className="mt-7">
+            <div className="mb-2 flex items-baseline justify-between gap-3 text-[11px]">
+              <p className="text-muted">
+                <span className={`font-medium tabular-nums ${statusTone(data.overall)}`}>
+                  {upCount} de {data.components.length}
+                </span>{" "}
+                servicios funcionando
+              </p>
+            </div>
+            <div
+              className="grid gap-1"
+              style={{ gridTemplateColumns: `repeat(${data.components.length}, minmax(0, 1fr))` }}
+              role="img"
+              aria-label={`${upCount} de ${data.components.length} servicios funcionando`}
+            >
+              {data.components.map((c) => (
+                <div key={c.id} className="group/seg relative">
+                  <div
+                    className={`h-1.5 rounded-full transition-colors duration-500 ${statusDot(c.status)} ${c.status === "operational" ? "opacity-80" : ""}`}
+                  />
+                  <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface-elevated px-2 py-1 text-[10px] text-foreground opacity-0 shadow-lg transition-opacity group-hover/seg:opacity-100">
+                    {c.name} · {componentLabel(c.status)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-[11px] text-muted">
+            <p>
               Actualizado{" "}
               <time dateTime={data.updatedAt} className="text-foreground/75">
                 {formatWhen(data.updatedAt)}
               </time>
-            </span>
-            <span className="hidden text-border sm:inline" aria-hidden>
-              ·
-            </span>
-            <span>Auto cada 60 s</span>
+              <span className="hidden sm:inline"> · se comprueba cada 60 s</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => void refresh()}
+              disabled={refreshing}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-elevated px-2.5 py-1.5 text-xs text-muted transition-colors hover:border-white/15 hover:text-foreground disabled:opacity-60"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                className={`size-3.5 ${refreshing ? "animate-spin" : ""}`}
+                aria-hidden
+              >
+                <path
+                  d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {refreshing ? "Comprobando…" : "Actualizar"}
+            </button>
           </div>
         </section>
 
-        <section className="rise mt-9" style={{ animationDelay: "140ms" }}>
-          <div className="mb-3 flex items-end justify-between gap-3">
-            <h2 className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-              Componentes
-            </h2>
-            <p className="text-[11px] text-muted">Latencia de la última prueba</p>
-          </div>
-
-          <ul className="overflow-hidden rounded-2xl border border-border bg-surface/80 backdrop-blur-sm">
-            {data.components.map((c, i) => {
-              const pct = latencyPct(c.latencyMs);
-              return (
-                <li
-                  key={c.id}
-                  className="group border-b border-border last:border-b-0"
-                  style={{ animationDelay: `${180 + i * 40}ms` }}
-                >
-                  <div className="flex items-center gap-3.5 px-4 py-4 transition-colors hover:bg-white/[0.02] md:px-5">
-                    <div className="grid size-9 shrink-0 place-items-center rounded-xl border border-border bg-surface-elevated">
-                      <ComponentIcon id={c.id} />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-foreground">{c.name}</p>
-                        <span
-                          className={`size-1.5 rounded-full ${statusDot(c.status)}`}
-                          aria-hidden
-                        />
-                      </div>
-                      <p className="mt-0.5 truncate text-xs text-muted">
-                        {c.description}
-                        {c.message ? ` · ${c.message}` : ""}
-                      </p>
-                      {c.latencyMs != null ? (
-                        <div
-                          className="mt-2.5 h-0.5 max-w-[12rem] overflow-hidden rounded-full bg-white/[0.06]"
-                          aria-hidden
-                        >
-                          <div
-                            className="latency-bar h-full rounded-full transition-[width] duration-500"
-                            style={
-                              {
-                                width: `${Math.max(pct, c.status === "outage" ? 100 : 4)}%`,
-                                ["--bar-color" as string]: latencyColor(c.status),
-                              } as React.CSSProperties
-                            }
+        <div className="rise mt-9 space-y-6" style={{ animationDelay: "140ms" }}>
+          {GROUPS.map((group) => {
+            const items = data.components.filter((c) => group.ids.includes(c.id));
+            if (items.length === 0) return null;
+            const up = items.filter((c) => c.status === "operational").length;
+            return (
+              <section key={group.title}>
+                <div className="mb-2.5 flex items-baseline justify-between gap-3 px-1">
+                  <h2 className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
+                    {group.title}
+                  </h2>
+                  <p className="text-[11px] tabular-nums text-muted">
+                    {up}/{items.length} operativos
+                  </p>
+                </div>
+                <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface/80 backdrop-blur-sm">
+                  {items.map((c) => (
+                    <li
+                      key={c.id}
+                      className="flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-white/[0.02] md:px-5"
+                    >
+                      <div className="relative grid size-9 shrink-0 place-items-center rounded-xl border border-border bg-surface-elevated">
+                        <ComponentIcon id={c.id} />
+                        {c.status !== "operational" ? (
+                          <span
+                            className={`absolute -right-0.5 -top-0.5 size-2.5 rounded-full ring-2 ring-surface ${statusDot(c.status)}`}
+                            aria-hidden
                           />
-                        </div>
-                      ) : null}
-                    </div>
+                        ) : null}
+                      </div>
 
-                    <div className="shrink-0 text-right">
-                      <p className={`text-xs font-medium ${statusTone(c.status)}`}>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground">{c.name}</p>
+                        {c.message ? (
+                          <p className={`mt-0.5 truncate text-xs ${statusTone(c.status)}`}>
+                            {c.message}
+                          </p>
+                        ) : (
+                          <p className="mt-0.5 truncate text-xs text-muted">{c.description}</p>
+                        )}
+                      </div>
+
+                      <div className="hidden shrink-0 items-center gap-2 sm:flex">
+                        {group.viaApi ? (
+                          <span className="text-[11px] text-muted">vía API</span>
+                        ) : c.latencyMs != null ? (
+                          <>
+                            <span className="font-mono text-[11px] tabular-nums text-muted">
+                              {c.latencyMs} ms
+                            </span>
+                            <SignalBars status={c.status} latencyMs={c.latencyMs} />
+                          </>
+                        ) : null}
+                      </div>
+
+                      <span
+                        className={`inline-flex w-[5.75rem] shrink-0 items-center justify-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium ${statusBadge(c.status)}`}
+                      >
+                        <span className={`size-1.5 rounded-full ${statusDot(c.status)}`} aria-hidden />
                         {componentLabel(c.status)}
-                      </p>
-                      {c.latencyMs != null ? (
-                        <p className="mt-0.5 font-mono text-[10px] tabular-nums text-muted">
-                          {c.latencyMs} ms
-                        </p>
-                      ) : (
-                        <p className="mt-0.5 text-[10px] text-muted">—</p>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
 
         <footer
           className="rise mt-12 flex flex-col gap-4 border-t border-border pt-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between"

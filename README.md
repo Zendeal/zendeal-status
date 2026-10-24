@@ -9,8 +9,8 @@ Repo **independiente** de `pasarela-pago`. Comprueba automáticamente:
 | Web | `GET https://zendeal.io` |
 | API | `GET https://api.zendeal.io/v1/health` |
 | Enlaces cortos | `GET https://zdeal.link/` |
-| MongoDB | campo `checks.mongo` del health de la API |
-| Redis | campo `checks.redis` del health de la API |
+| Base de datos | campo `checks.mongo` del health de la API |
+| Caché | campo `checks.redis` del health de la API |
 
 ## API pública
 

@@ -3,22 +3,33 @@ import type { ComponentId, ComponentStatus, OverallStatus } from "./types";
 export function overallLabel(status: OverallStatus): string {
   switch (status) {
     case "operational":
-      return "Todos los sistemas operativos";
+      return "Todo funciona correctamente";
     case "degraded":
-      return "Rendimiento degradado";
+      return "Algunos servicios van lentos";
     case "outage":
-      return "Incidente en curso";
+      return "Hay una incidencia en curso";
   }
 }
 
 export function overallSubcopy(status: OverallStatus): string {
   switch (status) {
     case "operational":
-      return "Web, API, enlaces y datos responden con normalidad.";
+      return "Pagos, panel y enlaces están disponibles con normalidad.";
     case "degraded":
-      return "Algunos servicios van más lentos o parcialmente afectados.";
+      return "Puedes seguir usando Zendeal, aunque algunas acciones pueden tardar más.";
     case "outage":
-      return "Hay un fallo que puede impedir cobros o el acceso al panel.";
+      return "Estamos trabajando en ello. Puede afectar a cobros o al acceso al panel.";
+  }
+}
+
+export function statusBadge(status: ComponentStatus | OverallStatus): string {
+  switch (status) {
+    case "operational":
+      return "border-success/25 bg-success/10 text-success";
+    case "degraded":
+      return "border-warning/25 bg-warning/10 text-warning";
+    case "outage":
+      return "border-danger/25 bg-danger/10 text-danger";
   }
 }
 
@@ -75,23 +86,6 @@ export function statusRing(status: OverallStatus): string {
     case "outage":
       return "ring-danger/25";
   }
-}
-
-export function latencyColor(status: ComponentStatus): string {
-  switch (status) {
-    case "operational":
-      return "var(--success)";
-    case "degraded":
-      return "var(--warning)";
-    case "outage":
-      return "var(--danger)";
-  }
-}
-
-/** Latency bar width: 0–100 relative to a soft 3s ceiling. */
-export function latencyPct(ms: number | null): number {
-  if (ms == null || ms < 0) return 0;
-  return Math.min(100, Math.round((ms / 3000) * 100));
 }
 
 export function componentIconLabel(id: ComponentId): string {
